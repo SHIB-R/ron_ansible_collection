@@ -2,13 +2,13 @@
 # The namespace of the collection. This can be a company/brand/organization or product namespace under which all
 # content lives. May only contain alphanumeric lowercase characters and underscores. Namespaces cannot start with
 # underscores or numbers and cannot contain consecutive underscores
-namespace: shib-r
+namespace: shib_r
 
 # The name of the collection. Has the same character restrictions as 'namespace'
 name: barak
 
 # The version of the collection. Must be compatible with semantic versioning
-version: 1.0.0
+version: 1.2.5
 
 # The path to the Markdown (.md) readme file. This path is relative to the root of the collection
 readme: README.md
@@ -30,7 +30,7 @@ license:
 
 # A list of tags you want to associate with the collection for indexing/searching. A tag name has the same character
 # requirements as 'namespace' and 'name'
-tags: [shib-r,sftp]
+tags: [sftp]
 
 # Collections that this collection requires to be installed for it to be usable. The key of the dict is the
 # collection label 'namespace.name'. The value is a version range
