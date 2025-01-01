@@ -13,7 +13,7 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.2.5"
+version_added: "1.2.6"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
@@ -155,7 +155,8 @@ def sftp_file(module):
             ssh.connect(host, 
                         port=port,
                         username=username,
-                        password=password)
+                        password=password
+                        allow_agent=False)
     except Exception as e:
 # If connection fails, return an error message and exit
         module.fail_json(msg=f"Failed to connect to {host}: {str(e)}")
@@ -165,12 +166,12 @@ def sftp_file(module):
 # Open SFTP session
         sftp = ssh.open_sftp()
         for item in src_files:
+            from_full_path = os.path.join(src_dir, item)
             if '*' in item: #if the filename has a wildcard in it
 ## Handle multiple files
 # Set the directory to list files from
                 from_dir = src_dir if src_dir else os.path.dirname(item)
                 regex_pattern = re.compile(fnmatch.translate(item))
-                from_full_path = os.path.join(src_dir, item)
 # Download
                 if state == 'download':
                     from_files_download = sftp.listdir(from_dir)
