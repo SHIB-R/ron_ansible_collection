@@ -13,23 +13,23 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.2.6"
+version_added: "1.3.1"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
 
 options:
     src_dir:
-    description:
+        description:
             - The source directory of the file\s. For downloads, this is the remote file path on the SFTP server. For uploads, this is the local file path.
-    required: true
-    type: str
+        required: true
+        type: str
 
     src_files:
-    description:
+        description:
             - The file\s you want to upload or download, can be used with Wildcard(*) and can be a list of files.
-    required: true
-    type: list
+        required: true
+        type: list
 
     dest:
         description:
@@ -155,7 +155,7 @@ def sftp_file(module):
             ssh.connect(host, 
                         port=port,
                         username=username,
-                        password=password
+                        password=password,
                         allow_agent=False)
     except Exception as e:
 # If connection fails, return an error message and exit
