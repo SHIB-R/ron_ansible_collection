@@ -13,23 +13,23 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.3.1"
+version_added: "1.2.5"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
 
 options:
     src_dir:
-        description:
+    description:
             - The source directory of the file\s. For downloads, this is the remote file path on the SFTP server. For uploads, this is the local file path.
-        required: true
-        type: str
+    required: true
+    type: str
 
     src_files:
-        description:
+    description:
             - The file\s you want to upload or download, can be used with Wildcard(*) and can be a list of files.
-        required: true
-        type: list
+    required: true
+    type: list
 
     dest:
         description:
@@ -166,12 +166,12 @@ def sftp_file(module):
 # Open SFTP session
         sftp = ssh.open_sftp()
         for item in src_files:
-            from_full_path = os.path.join(src_dir, item)
             if '*' in item: #if the filename has a wildcard in it
 ## Handle multiple files
 # Set the directory to list files from
                 from_dir = src_dir if src_dir else os.path.dirname(item)
                 regex_pattern = re.compile(fnmatch.translate(item))
+                from_full_path = os.path.join(src_dir, item)
 # Download
                 if state == 'download':
                     from_files_download = sftp.listdir(from_dir)
@@ -200,7 +200,7 @@ def sftp_file(module):
 
                     for file in files_to_upload:
                         local_file_path = os.path.join(from_dir, file)
-                        remote_file_path = os.path.join(dest, file) if os.path.isdir(dest) else dest
+                        remote_file_path = os.path.join(dest, file) 
                         try:
                            sftp.put(local_file_path, remote_file_path)
                         except Exception as e:
@@ -209,6 +209,7 @@ def sftp_file(module):
                 else:
                     result = {"changed": False, "msg": "Invalid state"}
             else: # if the filename has no wildcard in it
+                from_full_path = os.path.join(src_dir, item)
                 if state == 'download':
                     remote_file_path = from_full_path
                     local_file_path = os.path.join(dest, item) if os.path.isdir(dest) else dest
@@ -219,7 +220,7 @@ def sftp_file(module):
 
                 elif state == 'upload':
                     local_file_path = from_full_path
-                    remote_file_path = os.path.join(dest, item) if os.path.isdir(dest) else dest
+                    remote_file_path = os.path.join(dest, item)
                     
                     try:
                         sftp.put(local_file_path, remote_file_path)
