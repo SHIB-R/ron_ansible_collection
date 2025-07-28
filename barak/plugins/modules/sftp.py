@@ -13,7 +13,7 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.2.5"
+version_added: "1.4.2"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
@@ -149,8 +149,12 @@ def sftp_file(module):
 # if private key exists use it. use connect using password.
     try:
         if private_key:
-            ssh.connect(host, port=port,
-                        username=username, password=password, key_filename=private_key, allow_agent=True)
+            ssh.connect(host, 
+                        port=port,
+                        username=username, 
+                        key_filename=private_key,
+                        passphrase=password, 
+                        allow_agent=True)
         else:
             ssh.connect(host, 
                         port=port,
