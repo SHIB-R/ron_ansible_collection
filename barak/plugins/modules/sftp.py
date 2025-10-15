@@ -185,7 +185,8 @@ def sftp_file(module):
                         module.fail_json(msg=f"No files match the pattern {item}")
 
                     for file in files_to_download:
-                        remote_file_path = os.path.join(os.path.dirname(from_dir), file)
+#                        remote_file_path = os.path.join(os.path.dirname(from_dir), file)
+                        remote_file_path = os.path.join(from_dir, file)
 # Ensure dest is treated as a directory
                         local_file_path = os.path.join(dest, file) if os.path.isdir(dest) else dest
                  
