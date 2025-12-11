@@ -13,7 +13,7 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.4.2"
+version_added: "1.4.4"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
@@ -161,6 +161,9 @@ def sftp_file(module):
                         username=username,
                         password=password,
                         allow_agent=False)
+# Enable keepalive - sends a packet every 30 seconds
+        transport = ssh.get_transport()
+        transport.set_keepalive(30)
     except Exception as e:
 # If connection fails, return an error message and exit
         module.fail_json(msg=f"Failed to connect to {host}: {str(e)}")
