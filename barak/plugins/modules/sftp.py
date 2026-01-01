@@ -13,7 +13,7 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.4.6"
+version_added: "1.4.7"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
@@ -127,6 +127,34 @@ import re
 import glob
 import fnmatch
 
+## This function replaces paramiko's native sftp_get, because it has a hard time handling large files.
+## it prefetches the file, reads chucks of it in the source, and write them in the local destination.
+def sftp_download_resumable(sftp, remote_path, final_path, chunk_size=512 * 1024):
+    temp_path = final_path + ".part"
+
+    remote_size = sftp.stat(remote_path).st_size
+
+    offset = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
+    if offset > remote_size:
+        offset = 0
+
+
+    remote_file = sftp.file(remote_path, 'rb')
+    remote_file.prefetch()
+    remote_file.seek(offset)
+
+    with open(temp_path, 'ab', buffering=1024*1024) as local_file:
+        while offset < remote_size:
+            data = remote_file.read(chunk_size)
+            if not data:
+                break
+            local_file.write(data)
+            offset += len(data)
+
+    remote_file.close()
+
+    if offset == remote_size:
+        os.rename(temp_path, final_path)
 
 def sftp_file(module):
 # Get parameters
@@ -148,37 +176,38 @@ def sftp_file(module):
 
 # if private key exists use it. use connect using password.
     try:
+        connect_args = dict(
+            hostname=host,
+            port=port,
+            username=username,
+            allow_agent=False,
+            timeout=600
+        )
+        
         if private_key:
-            ssh.connect(host, 
-                        port=port,
-                        username=username, 
-                        key_filename=private_key,
-                        passphrase=password, 
-                        allow_agent=True,
-                        timeout=600)
+            connect_args['key_filename'] = private_key
+            connect_args['passphrase'] = password
+            connect_args['allow_agent'] = True
         else:
-            ssh.connect(host, 
-                        port=port,
-                        username=username,
-                        password=password,
-                        allow_agent=False,
-                        timeout=600)
-# Enable keepalive - sends a packet every 30 seconds
+            connect_args['password'] = password
+
+        ssh.connect(**connect_args)
         transport = ssh.get_transport()
         transport.set_keepalive(15)
+
     except Exception as e:
 # If connection fails, return an error message and exit
         module.fail_json(msg=f"Failed to connect to {host}: {str(e)}")
 
 # Start SFTP operation.
     try:
-# Open SFTP session
         sftp = ssh.open_sftp()
-
-# Disable timeout for the SFTP channel to handle large files
         sftp.get_channel().settimeout(None)
-# Increase the max packet size
-        sftp.MAX_REQUEST_SIZE = pow(2, 22)
+# Increase transport windows size for large files handle.        
+        transport = sftp.get_channel().get_transport()
+        transport.window_size = 2147483647  # 2GB
+        transport.packetizer.REKEY_BYTES = 2**40
+        transport.packetizer.REKEY_PACKETS = 2**40
 
         for item in src_files:
             if '*' in item: #if the filename has a wildcard in it
@@ -187,7 +216,7 @@ def sftp_file(module):
                 from_dir = src_dir if src_dir else os.path.dirname(item)
                 regex_pattern = re.compile(fnmatch.translate(item))
                 from_full_path = os.path.join(src_dir, item)
-# Download
+# Download - multi
                 if state == 'download':
                     from_files_download = sftp.listdir(from_dir)
 # Filter files that match the wildcard pattern
@@ -196,19 +225,17 @@ def sftp_file(module):
                         module.fail_json(msg=f"No files match the pattern {item}")
 
                     for file in files_to_download:
-#                        remote_file_path = os.path.join(os.path.dirname(from_dir), file)
                         remote_file_path = os.path.join(from_dir, file)
 # Ensure dest is treated as a directory
                         local_file_path = os.path.join(dest, file) if os.path.isdir(dest) else dest
                  
                         try:
-                            sftp.get(remote_file_path, local_file_path)
+                            sftp_download_resumable(sftp, remote_file_path, local_file_path)
                         except Exception as e:
                             module.fail_json(msg=f"Failed to download {remote_file_path}: {str(e)}")
-# Upload
+# Upload - multi
                 elif state == 'upload':
                     from_files_upload = os.listdir(from_dir)
-# Use glob to find files matching the pattern locally
                     files_to_upload = [file for file in from_files_upload if regex_pattern.match(file)]
                     print(f"Matching files for upload: {files_to_upload}")
                     if not files_to_upload:
@@ -226,14 +253,15 @@ def sftp_file(module):
                     result = {"changed": False, "msg": "Invalid state"}
             else: # if the filename has no wildcard in it
                 from_full_path = os.path.join(src_dir, item)
+# download - single
                 if state == 'download':
                     remote_file_path = from_full_path
                     local_file_path = os.path.join(dest, item) if os.path.isdir(dest) else dest
                     try:
-                         sftp.get(remote_file_path, local_file_path)
+                        sftp_download_resumable(sftp, remote_file_path, local_file_path)
                     except Exception as e:
                         module.fail_json(msg=f"Failed to download {remote_file_path}: {str(e)}")
-
+# upload - single
                 elif state == 'upload':
                     local_file_path = from_full_path
                     remote_file_path = os.path.join(dest, item)
