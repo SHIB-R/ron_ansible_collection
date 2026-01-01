@@ -13,7 +13,7 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.4.4"
+version_added: "1.4.5"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
@@ -154,13 +154,17 @@ def sftp_file(module):
                         username=username, 
                         key_filename=private_key,
                         passphrase=password, 
-                        allow_agent=True)
+                        allow_agent=True,
+                        timeout=300,
+                        banner_timeout=300)
         else:
             ssh.connect(host, 
                         port=port,
                         username=username,
                         password=password,
-                        allow_agent=False)
+                        allow_agent=False,
+                        timeout=300,
+                        banner_timeout=300)
 # Enable keepalive - sends a packet every 30 seconds
         transport = ssh.get_transport()
         transport.set_keepalive(30)
@@ -172,6 +176,10 @@ def sftp_file(module):
     try:
 # Open SFTP session
         sftp = ssh.open_sftp()
+
+# Disable timeout for the SFTP channel to handle large files
+        sftp.get_channel().settimeout(None)
+
         for item in src_files:
             if '*' in item: #if the filename has a wildcard in it
 ## Handle multiple files
@@ -194,6 +202,11 @@ def sftp_file(module):
                         local_file_path = os.path.join(dest, file) if os.path.isdir(dest) else dest
                  
                         try:
+# Use prefetch for better performance with large files
+                            remote_file = sftp.file(remote_file_path, 'rb')
+                            remote_file.prefetch()
+                            remote_file.close()
+
                             sftp.get(remote_file_path, local_file_path)
                         except Exception as e:
                             module.fail_json(msg=f"Failed to download {remote_file_path}: {str(e)}")
