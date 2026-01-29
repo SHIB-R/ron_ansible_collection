@@ -13,7 +13,7 @@ module: sftp
 
 short_description: download and upload 
 
-version_added: "1.4.8"
+version_added: "1.4.9"
 
 description:
     - Use to upload and download files to or from sftp server, can be used with wildcards(*).
@@ -140,6 +140,7 @@ def sftp_download_resumable(sftp, remote_path, final_path, chunk_size=512 * 1024
 
 
     remote_file = sftp.file(remote_path, 'rb')
+    remote_file.prefetch(file_size=remote_size, max_concurrent_requests=32)
     remote_file.seek(offset)
 
     with open(temp_path, 'ab', buffering=1024*1024) as local_file:
